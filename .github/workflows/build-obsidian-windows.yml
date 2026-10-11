@@ -1,0 +1,49 @@
+# Build Obsidian Studios para Windows (sin Rust local)
+# Colocar en: .github/workflows/build-obsidian-windows.yml del fork
+# y ejecutar desde la pestana Actions con "Run workflow".
+name: Build Obsidian Studios (Windows)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Setup Rust (MSVC)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: App env
+        shell: pwsh
+        run: Copy-Item packages/app-lib/.env.prod packages/app-lib/.env -Force
+
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+
+      # Usa SOLO tauri.conf.json base (sin updater oficial ni firma):
+      # el instalador sale sin auto-update, ideal para fork personal.
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        with:
+          projectPath: apps/app
+          tauriScript: pnpm tauri
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: obsidian-studios-windows
+          path: |
+            apps/app/target/release/bundle/msi/*.msi
+            apps/app/target/release/bundle/nsis/*.exe
